@@ -1,21 +1,19 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <OutputType>Library</OutputType>
-    <TargetFramework>netstandard2.0</TargetFramework>
-  </PropertyGroup>
-  <ItemGroup>
-    <None Include="README.md" />
-    <Compile Include="Result.fs" />
-    <Compile Include="Common.SimpleTypes.fs" />
-    <Compile Include="Common.CompoundTypes.fs" />
-    <Compile Include="PlaceOrder.PublicTypes.fs" />
-    <Compile Include="PlaceOrder.Implementation%28without effects%29.fs" />
-    <Compile Include="PlaceOrder.Implementation.fs" />
-    <Compile Include="PlaceOrder.Dto.fs" />
-    <Compile Include="PlaceOrder.Api.fs" />
-    <Compile Include="AssemblyInfo.fs" />
-    <None Include="paket.references" />
-  </ItemGroup>
-  <Import Project="..\..\.paket\Paket.Restore.targets" />
+    <PropertyGroup>
+        <OutputType>Library</OutputType>
+        <TargetFramework>netstandard2.1</TargetFramework>
+    </PropertyGroup>
+    <ItemGroup>
+        <None Include="README.md" />
+        <Compile Include="Result.fs" />
+        <Compile Include="Common.SimpleTypes.fs" />
+        <Compile Include="Common.CompoundTypes.fs" />
+        <Compile Include="PlaceOrder.PublicTypes.fs" />
+        <Compile Include="PlaceOrder.Implementation%28without effects%29.fs" />
+        <Compile Include="PlaceOrder.Implementation.fs" />
+        <Compile Include="PlaceOrder.Dto.fs" />
+        <Compile Include="PlaceOrder.Api.fs" />
+        <Compile Include="AssemblyInfo.fs" />
+    </ItemGroup>
 </Project>
