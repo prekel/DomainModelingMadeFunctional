@@ -3,7 +3,7 @@
 open OrderTaking.Common
 
 // ======================================================
-// Define each step in the PlaceOrder workflow using internal types 
+// Define each step in the PlaceOrder workflow using internal types
 // (not exposed outside the bounded context)
 // ======================================================
 
@@ -13,148 +13,126 @@ open OrderTaking.Common
 
 // Product validation
 
-type CheckProductCodeExists = 
-    ProductCode -> bool
+type CheckProductCodeExists = ProductCode -> bool
 
 // Address validation
-type AddressValidationError = 
-    | InvalidFormat 
-    | AddressNotFound 
+type AddressValidationError =
+    | InvalidFormat
+    | AddressNotFound
 
 type CheckedAddress = CheckedAddress of UnvalidatedAddress
 
-type CheckAddressExists = 
-    UnvalidatedAddress -> AsyncResult<CheckedAddress,AddressValidationError>
+type CheckAddressExists = UnvalidatedAddress -> AsyncResult<CheckedAddress, AddressValidationError>
 
 // ---------------------------
-// Validated Order 
+// Validated Order
 // ---------------------------
 
 type PricingMethod =
     | Standard
-    | Promotion of PromotionCode 
+    | Promotion of PromotionCode
 
-type ValidatedOrderLine =  {
-    OrderLineId : OrderLineId 
-    ProductCode : ProductCode 
-    Quantity : OrderQuantity
-    }
+type ValidatedOrderLine =
+    { OrderLineId: OrderLineId
+      ProductCode: ProductCode
+      Quantity: OrderQuantity }
 
-type ValidatedOrder = {
-    OrderId : OrderId
-    CustomerInfo : CustomerInfo
-    ShippingAddress : Address
-    BillingAddress : Address
-    Lines : ValidatedOrderLine list
-    PricingMethod : PricingMethod
-    }
+type ValidatedOrder =
+    { OrderId: OrderId
+      CustomerInfo: CustomerInfo
+      ShippingAddress: Address
+      BillingAddress: Address
+      Lines: ValidatedOrderLine list
+      PricingMethod: PricingMethod }
 
-type ValidateOrder = 
-    CheckProductCodeExists  // dependency
-     -> CheckAddressExists  // dependency
-     -> UnvalidatedOrder    // input
-     -> AsyncResult<ValidatedOrder, ValidationError> // output
+type ValidateOrder =
+    CheckProductCodeExists -> CheckAddressExists -> UnvalidatedOrder -> AsyncResult<ValidatedOrder, ValidationError> // input
 
 // ---------------------------
 // Pricing step
 // ---------------------------
 
 
-type GetProductPrice = 
-    ProductCode -> Price
+type GetProductPrice = ProductCode -> Price
 
-type TryGetProductPrice = 
-    ProductCode -> Price option
+type TryGetProductPrice = ProductCode -> Price option
 
 type GetPricingFunction = PricingMethod -> GetProductPrice
 
-type GetStandardPrices = 
+type GetStandardPrices =
     // no input -> return standard prices
     unit -> GetProductPrice
 
-type GetPromotionPrices = 
+type GetPromotionPrices =
     // promo input -> return prices for promo, maybe
-    PromotionCode -> TryGetProductPrice 
+    PromotionCode -> TryGetProductPrice
 
 
 
 
-// priced state            
-type PricedOrderProductLine = {
-    OrderLineId : OrderLineId 
-    ProductCode : ProductCode 
-    Quantity : OrderQuantity
-    LinePrice : Price
-    }
+// priced state
+type PricedOrderProductLine =
+    { OrderLineId: OrderLineId
+      ProductCode: ProductCode
+      Quantity: OrderQuantity
+      LinePrice: Price }
 
-type PricedOrderLine = 
+type PricedOrderLine =
     | ProductLine of PricedOrderProductLine
     | CommentLine of string
 
-type PricedOrder = {
-    OrderId : OrderId
-    CustomerInfo : CustomerInfo
-    ShippingAddress : Address
-    BillingAddress : Address
-    AmountToBill : BillingAmount
-    Lines : PricedOrderLine list
-    PricingMethod : PricingMethod
-    }
+type PricedOrder =
+    { OrderId: OrderId
+      CustomerInfo: CustomerInfo
+      ShippingAddress: Address
+      BillingAddress: Address
+      AmountToBill: BillingAmount
+      Lines: PricedOrderLine list
+      PricingMethod: PricingMethod }
 
-type PriceOrder = 
-    GetPricingFunction     // dependency
-     -> ValidatedOrder  // input
-     -> Result<PricedOrder, PricingError>  // output
+type PriceOrder =
+    GetPricingFunction -> ValidatedOrder -> Result<PricedOrder, PricingError> // input
 
 // ---------------------------
 // Shipping
 // ---------------------------
 
-type ShippingMethod = 
-    | PostalService 
-    | Fedex24 
-    | Fedex48 
+type ShippingMethod =
+    | PostalService
+    | Fedex24
+    | Fedex48
     | Ups48
 
-type ShippingInfo = {
-    ShippingMethod : ShippingMethod
-    ShippingCost : Price
-    }
+type ShippingInfo =
+    { ShippingMethod: ShippingMethod
+      ShippingCost: Price }
 
-type PricedOrderWithShippingMethod = {
-    ShippingInfo : ShippingInfo 
-    PricedOrder : PricedOrder
-    }
+type PricedOrderWithShippingMethod =
+    { ShippingInfo: ShippingInfo
+      PricedOrder: PricedOrder }
 
-type CalculateShippingCost = 
-    PricedOrder -> Price
+type CalculateShippingCost = PricedOrder -> Price
 
-type AddShippingInfoToOrder = 
-    CalculateShippingCost // dependency
-     -> PricedOrder       // input
-     -> PricedOrderWithShippingMethod  // output
+type AddShippingInfoToOrder =
+    CalculateShippingCost -> PricedOrder -> PricedOrderWithShippingMethod // input
 
 // ---------------------------
 // VIP shipping
 // ---------------------------
 
-type FreeVipShipping =
-    PricedOrderWithShippingMethod -> PricedOrderWithShippingMethod
+type FreeVipShipping = PricedOrderWithShippingMethod -> PricedOrderWithShippingMethod
 
 // ---------------------------
-// Send OrderAcknowledgment 
+// Send OrderAcknowledgment
 // ---------------------------
 
-type HtmlString = 
-    HtmlString of string
+type HtmlString = HtmlString of string
 
-type OrderAcknowledgment = {
-    EmailAddress : EmailAddress
-    Letter : HtmlString 
-    }
+type OrderAcknowledgment =
+    { EmailAddress: EmailAddress
+      Letter: HtmlString }
 
-type CreateOrderAcknowledgmentLetter =
-    PricedOrderWithShippingMethod -> HtmlString
+type CreateOrderAcknowledgmentLetter = PricedOrderWithShippingMethod -> HtmlString
 
 /// Send the order acknowledgement to the customer
 /// Note that this does NOT generate an Result-type error (at least not in this workflow)
@@ -162,23 +140,18 @@ type CreateOrderAcknowledgmentLetter =
 /// On success, we will generate a OrderAcknowledgmentSent event,
 /// but on failure we won't.
 
-type SendResult = Sent | NotSent
+type SendResult =
+    | Sent
+    | NotSent
 
-type SendOrderAcknowledgment =
-    OrderAcknowledgment -> SendResult 
-    
-type AcknowledgeOrder = 
-    CreateOrderAcknowledgmentLetter  // dependency
-     -> SendOrderAcknowledgment      // dependency
-     -> PricedOrderWithShippingMethod  // input
-     -> OrderAcknowledgmentSent option // output
+type SendOrderAcknowledgment = OrderAcknowledgment -> SendResult
+
+type AcknowledgeOrder =
+    CreateOrderAcknowledgmentLetter -> SendOrderAcknowledgment -> PricedOrderWithShippingMethod -> OrderAcknowledgmentSent option // output
 
 // ---------------------------
 // Create events
 // ---------------------------
 
-type CreateEvents = 
-    PricedOrder                           // input
-     -> OrderAcknowledgmentSent option    // input (event from previous step)
-     -> PlaceOrderEvent list              // output
-
+type CreateEvents =
+    PricedOrder -> OrderAcknowledgmentSent option -> PlaceOrderEvent list // output

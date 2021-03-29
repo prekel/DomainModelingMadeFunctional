@@ -18,17 +18,15 @@ open OrderTaking.PlaceOrder.InternalTypes
 type JsonString = string
 
 /// Very simplified version!
-type HttpRequest = {
-    Action : string
-    Uri : string
-    Body : JsonString 
-    }
+type HttpRequest =
+    { Action: string
+      Uri: string
+      Body: JsonString }
 
 /// Very simplified version!
-type HttpResponse = {
-    HttpStatusCode : int
-    Body : JsonString 
-    }
+type HttpResponse =
+    { HttpStatusCode: int
+      Body: JsonString }
 
 /// An API takes a HttpRequest as input and returns a async response
 type PlaceOrderApi = HttpRequest -> Async<HttpResponse>
@@ -38,59 +36,52 @@ type PlaceOrderApi = HttpRequest -> Async<HttpResponse>
 // Implementation
 // =============================
 
-// setup dummy dependencies            
+// setup dummy dependencies
 
-let checkProductExists : CheckProductCodeExists =
-    fun productCode -> 
-        true // dummy implementation
+let checkProductExists : CheckProductCodeExists = fun productCode -> true // dummy implementation
 
 let checkAddressExists : CheckAddressExists =
-    fun unvalidatedAddress -> 
-        let checkedAddress = CheckedAddress unvalidatedAddress 
-        AsyncResult.retn checkedAddress 
+    fun unvalidatedAddress ->
+        let checkedAddress = CheckedAddress unvalidatedAddress
+        AsyncResult.retn checkedAddress
 
-let getStandardPrices() : GetProductPrice =
-    fun productCode -> 
-        Price.unsafeCreate 10M 
+let getStandardPrices () : GetProductPrice =
+    fun productCode -> Price.unsafeCreate 10M
 
-let getPromotionPrices (PromotionCode promotionCode) :TryGetProductPrice =
+let getPromotionPrices (PromotionCode promotionCode) : TryGetProductPrice =
 
-    let halfPricePromotion : TryGetProductPrice = 
-        fun productCode -> 
+    let halfPricePromotion : TryGetProductPrice =
+        fun productCode ->
             if ProductCode.value productCode = "ONSALE" then
                 Price.unsafeCreate 5M |> Some
             else
                 None
 
-    let quarterPricePromotion : TryGetProductPrice = 
-        fun productCode -> 
+    let quarterPricePromotion : TryGetProductPrice =
+        fun productCode ->
             if ProductCode.value productCode = "ONSALE" then
                 Price.unsafeCreate 2.5M |> Some
             else
                 None
 
-    let noPromotion : TryGetProductPrice = 
-        fun productCode -> None
+    let noPromotion : TryGetProductPrice = fun productCode -> None
 
     match promotionCode with
     | "HALF" -> halfPricePromotion
     | "QUARTER" -> quarterPricePromotion
-    | _ -> noPromotion 
+    | _ -> noPromotion
 
-let getPricingFunction :GetPricingFunction = 
-    PricingModule.getPricingFunction getStandardPrices  getPromotionPrices 
-  
-let calculateShippingCost = 
-    Implementation.calculateShippingCost
+let getPricingFunction : GetPricingFunction =
+    PricingModule.getPricingFunction getStandardPrices getPromotionPrices
+
+let calculateShippingCost = Implementation.calculateShippingCost
 
 let createOrderAcknowledgmentLetter : CreateOrderAcknowledgmentLetter =
     fun pricedOrder ->
         let letterTest = HtmlString "some text"
-        letterTest 
+        letterTest
 
-let sendOrderAcknowledgment : SendOrderAcknowledgment =
-    fun orderAcknowledgement ->
-        Sent 
+let sendOrderAcknowledgment : SendOrderAcknowledgment = fun orderAcknowledgement -> Sent
 
 
 // -------------------------------
@@ -98,32 +89,24 @@ let sendOrderAcknowledgment : SendOrderAcknowledgment =
 // -------------------------------
 
 /// This function converts the workflow output into a HttpResponse
-let workflowResultToHttpReponse result = 
+let workflowResultToHttpReponse result =
     match result with
     | Ok events ->
         // turn domain events into dtos
-        let dtos = 
-            events 
+        let dtos =
+            events
             |> List.map PlaceOrderEventDto.fromDomain
             |> List.toArray // arrays are json friendly
         // and serialize to JSON
         let json = JsonConvert.SerializeObject(dtos)
-        let response = 
-            {
-            HttpStatusCode = 200
-            Body = json
-            }
+        let response = { HttpStatusCode = 200; Body = json }
         response
-    | Error err -> 
+    | Error err ->
         // turn domain errors into a dto
         let dto = err |> PlaceOrderErrorDto.fromDomain
         // and serialize to JSON
-        let json = JsonConvert.SerializeObject(dto )
-        let response = 
-            {
-            HttpStatusCode = 401
-            Body = json
-            }
+        let json = JsonConvert.SerializeObject(dto)
+        let response = { HttpStatusCode = 401; Body = json }
         response
 
 let placeOrderApi : PlaceOrderApi =
@@ -132,23 +115,26 @@ let placeOrderApi : PlaceOrderApi =
 
         // start with a string
         let orderFormJson = request.Body
-        let orderForm = JsonConvert.DeserializeObject<OrderFormDto>(orderFormJson)
+
+        let orderForm =
+            JsonConvert.DeserializeObject<OrderFormDto>(orderFormJson)
         // convert to domain object
-        let unvalidatedOrder = orderForm |> OrderFormDto.toUnvalidatedOrder
+        let unvalidatedOrder =
+            orderForm |> OrderFormDto.toUnvalidatedOrder
 
         // setup the dependencies. See "Injecting Dependencies" in chapter 9
-        let workflow = 
-            Implementation.placeOrder 
+        let workflow =
+            Implementation.placeOrder
                 checkProductExists // dependency
                 checkAddressExists // dependency
                 getPricingFunction // dependency
                 calculateShippingCost // dependency
-                createOrderAcknowledgmentLetter  // dependency
+                createOrderAcknowledgmentLetter // dependency
                 sendOrderAcknowledgment // dependency
 
         // now we are in the pure domain
-        let asyncResult = workflow unvalidatedOrder 
+        let asyncResult = workflow unvalidatedOrder
 
         // now convert from the pure domain back to a HttpResponse
-        asyncResult 
+        asyncResult
         |> Async.map (workflowResultToHttpReponse)
